@@ -20,7 +20,12 @@ import scala.collection.mutable.ArrayBuffer
  */
 object ModelDSL {
 
-  implicit def stringToVariable(name: String): Variable = Variable(name)
+  implicit def stringToVariable(name: String): Variable = {
+    val VariablePattern = """(\d+)*\s?(\w)+""".r
+    name match {
+      case VariablePattern(coeff, name) => Variable(name, coeff.toDouble)
+    }
+  }
 
   implicit def intToVariable(i: Int): Variable = Variable("")
 
@@ -50,7 +55,7 @@ object ModelDSL {
     }
 
     def maximize(e: Expression): Model = {
-      ._sense = ModelSense.maximize
+      _sense = ModelSense.maximize
       objective = e
       this
     }
@@ -124,18 +129,21 @@ object ModelDSL {
   }
 
   def main(args: Array[String]) = {
-    val x: Variable = "x" continuous (0 to 1)
+
+    val x: Variable = "x" continuous (0 to 100)
     val y: Variable = "y" continuous (0 to 1)
     val z: Variable = "z" continuous (0 to 1)
 
     //   maximize    x + y + 2z
-    val obj: Expression = x + y + (z coeff 2) // x + y + 2z
+//    val obj: Expression = x + y + (z coeff 2) // x + y + 2z
+    val obj: Expression = x + y + "2z" // x + y + 2z
 
     // subject to  x + 2y + 3z <= 10
-    val c1: Constraint = (x + (y coeff 2) + (z coeff 3)) <= 10
+//    val c1: Constraint = (x + (y coeff 2) + (z coeff 3)) <= 10
+    val c1: Constraint = x + "2y" + "3z" <= 10
 
     // subject to  x + y >= 1
-    val c2: Constraint = (x + y) >= 1
+    val c2: Constraint = x + y >= 1
 
     val model = Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
   }
