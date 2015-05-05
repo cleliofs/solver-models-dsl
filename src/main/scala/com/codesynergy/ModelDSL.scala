@@ -29,14 +29,14 @@ object ModelDSL {
 
   implicit def intToVariable(i: Int): Variable = Variable("")
 
-  implicit def modelToJavaModel(model: Model): com.aimia.solver.client.model.Model = {
-    var javaModelBuilder = new Builder();
-    model.constraints.foreach(javaModelBuilder.addConstraint(_))
-    model.variables.foreach(javaModelBuilder.addVariable(_))
-    javaModelBuilder
-      .withObjective(model.objective)
-      .build()
-  }
+//  implicit def modelToJavaModel(model: Model): com.aimia.solver.client.model.Model = {
+//    var javaModelBuilder = new Builder();
+//    model.constraints.foreach(javaModelBuilder.addConstraint(_))
+//    model.variables.foreach(javaModelBuilder.addVariable(_))
+//    javaModelBuilder
+//      .withObjective(model.objective)
+//      .build()
+//  }
 
   case class Model(name: String) {
     private var _sense: ModelSense = _
