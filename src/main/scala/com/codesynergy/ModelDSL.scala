@@ -34,7 +34,7 @@ object ModelDSL {
     else new Expression(1, Variable(l(0)))
   }
 
-  implicit def variableToExpression(v: Variable) = new Expression(1, v)
+  implicit def variableToExpression(v: Variable): Expression = new Expression(1, v)
 
   implicit def varSenseToJavaVarType(s: VariableSense): model.Variable.Type = {
     s match {
@@ -57,7 +57,7 @@ object ModelDSL {
       case ObjectiveSense.minimize => model.Objective.Sense.MINIMIZE
     }
   }
-  
+
   implicit def variableToJavaVariable(v: Variable): model.Variable = {
     val javaVariableBuilder = new model.Variable.Builder()
     javaVariableBuilder.withName(v.name)
@@ -137,30 +137,34 @@ object ModelDSL {
       this
     }
 
+    def convert = modelToJavaModel(this)
   }
 
   case class Variable(name: String = "", coeff: Double = 1.0) {
 
-    private var _range: (Int, Int) = _
+    private var _lb: Int = _
+    private var _ub: Int = _
     private var variableSense: VariableSense = _
 
-    def continuous(range: (Int, Int)) = {
-      _range = range
+    def continuous(lb: Int, ub: Int) = {
+      _lb = lb
+      _ub = ub
       variableSense = VariableSense.continuous
       this
     }
 
-    def binary(range: (Int, Int)) = {
-      _range = range
+    def binary(lb: Int, up: Int) = {
+      _lb = lb
+      _ub = ub
       variableSense = VariableSense.binary
       this
     }
 
     def * (coeff: Double): Expression = new Expression(coeff, this)
 
-    def lb = _range._1
+    def lb = _lb
 
-    def ub = _range._2
+    def ub = _ub
 
     def sense = variableSense
   }
@@ -312,7 +316,8 @@ object ModelDSL {
     val continuous, binary = Value
   }
 
-  def main(args: Array[String]) = {
+
+  def createModel = {
 
     val x: Variable = "x" continuous (0, 1)
     val y: Variable = "y" continuous (0, 1)
@@ -327,9 +332,13 @@ object ModelDSL {
     // subject to  x + y >= 1
     val c2: Constraint = x + y >= 1
 
-    val m = Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
+    Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
 
-    javaModelToString(m)
+  }
+
+  def main(args: Array[String]) = {
+
+    javaModelToString(createModel)
 
     def javaModelToString(m: model.Model) = println(m)
   }
