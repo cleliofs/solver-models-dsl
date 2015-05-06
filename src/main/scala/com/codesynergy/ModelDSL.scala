@@ -22,19 +22,19 @@ import scala.collection.mutable.ArrayBuffer
  */
 object ModelDSL {
 
-  implicit def intToVariable(i: Int): Variable = Variable("")
-
   implicit def stringToVariable(name: String): Variable = {
     val l = name.split(" ").toList
-    Variable(l(1), l(0).toDouble)
+    if (l.length > 1) Variable(l(1), l(0).toDouble)
+    else Variable(l(0))
   }
 
   implicit def stringToExpression(name: String): Expression = {
     val l = name.split(" ").toList
-    val coeff = l(0).toDouble
-    val v = Variable(l(1))
-    new Expression(coeff, v)
+    if (l.length > 1) new Expression(l(0).toDouble, Variable(l(1)))
+    else new Expression(1, Variable(l(0)))
   }
+
+  implicit def variableToExpression(v: Variable) = new Expression(1, v)
 
   implicit def varSenseToJavaVarType(s: VariableSense): model.Variable.Type = {
     s match {
@@ -71,12 +71,12 @@ object ModelDSL {
     val javaConstraintBuilder = new model.Constraint.Builder()
     javaConstraintBuilder.withName(c.name)
     javaConstraintBuilder.withSense(c.sense)
-    javaConstraintBuilder.withLhsVar(c.lhsVar)
-    javaConstraintBuilder.withLhsExpr(c.lhsExpr)
-    javaConstraintBuilder.withLhsValue(c.lhsValue)
-    javaConstraintBuilder.withRhsVar(c.rhsVar)
-    javaConstraintBuilder.withRhsExpr(c.rhsExpr)
-    javaConstraintBuilder.withRhsValue(c.rhsValue)
+    if (c.lhsVar != None) javaConstraintBuilder.withLhsVar(c.lhsVar.get)
+    if (c.lhsExpr != None) javaConstraintBuilder.withLhsExpr(c.lhsExpr.get)
+    if (c.lhsValue != None) javaConstraintBuilder.withLhsValue(c.lhsValue.get)
+    if (c.rhsVar != None) javaConstraintBuilder.withRhsVar(c.rhsVar.get)
+    if (c.rhsExpr != None) javaConstraintBuilder.withRhsExpr(c.rhsExpr.get)
+    if (c.rhsValue != None) javaConstraintBuilder.withRhsValue(c.rhsValue.get)
     javaConstraintBuilder.build()
   }
 
@@ -96,6 +96,7 @@ object ModelDSL {
 
   implicit def modelToJavaModel(m: Model): model.Model = {
     val javaModelBuilder = new Builder()
+    javaModelBuilder.withName(m.name)
     m.constraints.foreach(javaModelBuilder.addConstraint(_))
     m.variables.foreach(javaModelBuilder.addVariable(_))
     javaModelBuilder
@@ -107,8 +108,8 @@ object ModelDSL {
     private var _sense: ObjectiveSense = _
 
     var objective: Objective = _
-    var variables: ArrayBuffer[Variable] = _
-    var constraints: ArrayBuffer[Constraint] = _
+    var variables = new ArrayBuffer[Variable]()
+    var constraints = new ArrayBuffer[Constraint]()
 
     def +=(v: Seq[Variable]): Model = {
       variables++=v
@@ -138,22 +139,24 @@ object ModelDSL {
 
   }
 
-  case class Variable(name: String = "", coeff: Double = 0.0) {
+  case class Variable(name: String = "", coeff: Double = 1.0) {
 
-    private var _range: Tuple2[Int, Int] = _
+    private var _range: (Int, Int) = _
     private var variableSense: VariableSense = _
 
-    def continuous(range: Tuple2[Int, Int] = (0, 1)) = {
+    def continuous(range: (Int, Int)) = {
       _range = range
       variableSense = VariableSense.continuous
       this
     }
 
-    def binary(range: Tuple2[Int, Int]) = {
+    def binary(range: (Int, Int)) = {
       _range = range
       variableSense = VariableSense.binary
       this
     }
+
+    def * (coeff: Double): Expression = new Expression(coeff, this)
 
     def lb = _range._1
 
@@ -163,65 +166,65 @@ object ModelDSL {
   }
 
   case class Constraint(name: String = "") {
-    var lhsVar: Variable = _
-    var rhsVar: Variable = _
-    var lhsExpr: Expression = _
-    var rhsExpr: Expression = _
-    var lhsValue: Double = _
-    var rhsValue: Double = _
+    var lhsVar: Option[Variable] = None
+    var rhsVar: Option[Variable] = None
+    var lhsExpr: Option[Expression] = None
+    var rhsExpr: Option[Expression] = None
+    var lhsValue: Option[Double] = None
+    var rhsValue: Option[Double] = None
 
     def this(lhsVar: Variable, rhsVar: Variable) = {
       this()
-      this.lhsVar = lhsVar
-      this.rhsVar = rhsVar
+      this.lhsVar = Some(lhsVar)
+      this.rhsVar = Some(rhsVar)
     }
 
     def this(lhsVar: Variable, rhsValue: Double) = {
       this()
-      this.lhsVar = lhsVar
-      this.rhsValue = rhsValue
+      this.lhsVar = Some(lhsVar)
+      this.rhsValue = Some(rhsValue)
     }
 
     def this(lhsVar: Variable, rhsExpr: Expression) = {
       this()
-      this.lhsVar = lhsVar
-      this.rhsExpr = rhsExpr
+      this.lhsVar = Some(lhsVar)
+      this.rhsExpr = Some(rhsExpr)
     }
 
     def this(lhsExpr: Expression, rhsExpr: Expression) = {
       this()
-      this.lhsExpr = lhsExpr
-      this.rhsExpr = rhsExpr
+      this.lhsExpr = Some(lhsExpr)
+      this.rhsExpr = Some(rhsExpr)
     }
 
     def this(lhsExpr: Expression, rhsValue: Double) = {
       this()
-      this.lhsExpr = lhsExpr
-      this.rhsValue = rhsValue
+      this.lhsExpr = Some(lhsExpr)
+      this.rhsValue = Some(rhsValue)
     }
 
     def this(lhsExpr: Expression, rhsVar: Variable) = {
       this()
-      this.lhsExpr = lhsExpr
-      this.rhsVar = rhsVar
+      this.lhsExpr = Some(lhsExpr)
+      this.rhsVar = Some(rhsVar)
     }
 
     def this(lhsValue: Double, rhsValue: Double) = {
       this()
-      this.lhsValue = lhsValue
-      this.rhsValue = rhsValue
+      this.lhsValue = Some(lhsValue)
+      this.rhsValue = Some(rhsValue)
     }
 
     def this(lhsValue: Double, rhsVar: Variable) = {
       this()
-      this.lhsValue = lhsValue
-      this.rhsVar = rhsVar
+      this.lhsValue = Some(lhsValue)
+      this.rhsVar = Some(rhsVar)
     }
 
     def this(lhsValue: Double, rhsExpr: Expression) = {
       this()
-      this.lhsValue = lhsValue
-      this.rhsExpr = rhsExpr
+      this.lhsValue = Some(lhsValue)
+      this.rhsExpr = Some(rhsExpr)
     }
 
     def sense: ConstraintSense.Value = null
@@ -240,6 +243,12 @@ object ModelDSL {
     def +(v: Variable*): Expression = {
       _vars ++= v
       v.foreach(_coeffs += _.coeff)
+      this
+    }
+
+    def +(e: Expression): Expression = {
+      _vars ++= e.vars
+      _coeffs ++= e.coeffs
       this
     }
 
@@ -310,15 +319,19 @@ object ModelDSL {
     val z: Variable = "z" continuous (0, 1)
 
     //   maximize    x + y + 2z
-    val obj: Expression = "x" + "y" + "2 z"
+    val obj: Expression = x + y + (z * 2)
 
     // subject to  x + 2y + 3z <= 10
-    val c1: Constraint = "x" + "2 y" + "3 z" <= 10
+    val c1: Constraint = x + (y * 2) + (z * 3) <= 10
 
     // subject to  x + y >= 1
-    val c2: Constraint = "x" + "y" >= 1
+    val c2: Constraint = x + y >= 1
 
-    val model = Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
+    val m = Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
+
+    javaModelToString(m)
+
+    def javaModelToString(m: model.Model) = println(m)
   }
 
 }
