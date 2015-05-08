@@ -22,17 +22,21 @@ import scala.collection.mutable.ArrayBuffer
  */
 object ModelDSL {
 
-  implicit def stringToVariable(name: String): Variable = {
-    val l = name.split(" ").toList
-    if (l.length > 1) Variable(l(1), l(0).toDouble)
-    else Variable(l(0))
+  implicit def stringToVariable(name: String): Variable = name.split(" ").toList match {
+    case l if l.size == 1 => Variable(name = l.head)
+    case l if l.size == 2 => Variable(l.head, l(1).toDouble)
+    case _ => throw new IllegalArgumentException(s"A non-expected list with more than two items as given: $name")
   }
 
-  implicit def stringToExpression(name: String): Expression = {
-    val l = name.split(" ").toList
-    if (l.length > 1) new Expression(l(0).toDouble, Variable(l(1)))
-    else new Expression(1, Variable(l(0)))
+  implicit def stringToExpression(name: String): Expression = name.split(" ").toList match {
+    case l if l.size == 1 => new Expression(1, Variable(l.head))
+    case l if l.size == 2 => new Expression(l.head.toDouble, Variable(l(1)))
+    case _ => throw new IllegalArgumentException(s"A non-expected list with more than two items as given: $name")
   }
+
+  implicit def intToVar(i: Int): Variable = Variable(coeff = i)
+
+  implicit def doubleToVar(d: Double): Variable = Variable(coeff = d)
 
   implicit def variableToExpression(v: Variable): Expression = new Expression(1, v)
 
@@ -162,6 +166,8 @@ object ModelDSL {
 
     def * (coeff: Double): Expression = new Expression(coeff, this)
 
+    def * (variable: Variable): Expression = new Expression(this.coeff, variable)
+
     def lb = _lb
 
     def ub = _ub
@@ -234,15 +240,12 @@ object ModelDSL {
     def sense: ConstraintSense.Value = null
   }
 
-  case class Expression(name: String = "") {
+  case class Expression(coeff: Double, variable: Variable) {
     private var _vars: ArrayBuffer[Variable] = new ArrayBuffer[Variable]()
     private var _coeffs: ArrayBuffer[Double] = new ArrayBuffer[Double]()
 
-    def this(coeff: Double, variable: Variable) {
-      this()
-      _coeffs += coeff
-      _vars += variable
-    }
+    _coeffs += coeff
+    _vars += variable
 
     def +(v: Variable*): Expression = {
       _vars ++= v
@@ -316,31 +319,21 @@ object ModelDSL {
     val continuous, binary = Value
   }
 
-
   def createModel = {
-
     val x: Variable = "x" continuous (0, 1)
     val y: Variable = "y" continuous (0, 1)
     val z: Variable = "z" continuous (0, 1)
 
-    //   maximize    x + y + 2z
-    val obj: Expression = x + y + (z * 2)
-
-    // subject to  x + 2y + 3z <= 10
-    val c1: Constraint = x + (y * 2) + (z * 3) <= 10
-
-    // subject to  x + y >= 1
+    val obj: Expression = x + y + 2*z
+    val c1: Constraint = x + 2*y + 3*z <= 10
     val c2: Constraint = x + y >= 1
 
     Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
-
   }
 
   def main(args: Array[String]) = {
-
-    javaModelToString(createModel)
-
     def javaModelToString(m: model.Model) = println(m)
+    javaModelToString(createModel)
   }
 
 }
