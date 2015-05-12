@@ -136,8 +136,8 @@ object ModelDSL {
       this
     }
 
-    def subject_to(c: Constraint): Model = {
-      constraints+=c
+    def subject_to(c: Constraint*): Model = {
+      constraints++=c
       this
     }
 
@@ -356,6 +356,5 @@ object ModelDSL {
     def javaModelToString(m: model.Model) = println(m)
     javaModelToString(createModel)
   }
-
 
 }
