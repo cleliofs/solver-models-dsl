@@ -175,7 +175,7 @@ object ModelDSL {
     def sense = variableSense
   }
 
-  case class Constraint(name: String = "") {
+  abstract class Constraint(var name: String = "") {
     var lhsVar: Option[Variable] = None
     var rhsVar: Option[Variable] = None
     var lhsExpr: Option[Expression] = None
@@ -237,7 +237,7 @@ object ModelDSL {
       this.rhsExpr = Some(rhsExpr)
     }
 
-    def sense: ConstraintSense.Value = null
+    val sense: ConstraintSense.Value
   }
 
   case class Expression(coeff: Double, variable: Variable) {
@@ -263,23 +263,40 @@ object ModelDSL {
 
     def coeffs = _coeffs
 
-    def ==(rhsVal: Double): Constraint = new Constraint(this, rhsVal) with ==
+    // operators for rhs value
+    def ==(rhsVal: Double) = new Constraint(this, rhsVal) with ==
 
-    def <=(rhsVal: Double): Constraint = new Constraint(this, rhsVal) with <=
+    def <=(rhsVal: Double) = new Constraint(this, rhsVal) with <=
 
-    def >=(rhsVal: Double): Constraint = new Constraint(this, rhsVal) with >=
+    def >=(rhsVal: Double) = new Constraint(this, rhsVal) with >=
 
-    def ==(rhsVar: Variable): Constraint = new Constraint(this, rhsVar) with ==
+    def <(rhsVal: Double) = new Constraint(this, rhsVal) with <
 
-    def <=(rhsVar: Variable): Constraint = new Constraint(this, rhsVar) with <=
+    def >(rhsVal: Double) = new Constraint(this, rhsVal) with >
 
-    def >=(rhsVar: Variable): Constraint = new Constraint(this, rhsVar) with >=
 
-    def ==(rhsExpr: Expression): Constraint = new Constraint(this, rhsExpr) with ==
+    // operators for rhs variable
+    def ==(rhsVar: Variable) = new Constraint(this, rhsVar) with ==
 
-    def <=(rhsExpr: Expression): Constraint = new Constraint(this, rhsExpr) with <=
+    def <=(rhsVar: Variable) = new Constraint(this, rhsVar) with <=
 
-    def >=(rhsExpr: Expression): Constraint = new Constraint(this, rhsExpr) with >=
+    def >=(rhsVar: Variable) = new Constraint(this, rhsVar) with >=
+
+    def <(rhsVar: Variable) = new Constraint(this, rhsVar) with <
+
+    def >(rhsVar: Variable) = new Constraint(this, rhsVar) with >
+
+
+    // operators for rhs expression
+    def ==(rhsExpr: Expression) = new Constraint(this, rhsExpr) with ==
+
+    def <=(rhsExpr: Expression) = new Constraint(this, rhsExpr) with <=
+
+    def >=(rhsExpr: Expression) = new Constraint(this, rhsExpr) with >=
+
+    def <(rhsExpr: Expression) = new Constraint(this, rhsExpr) with <
+
+    def >(rhsExpr: Expression) = new Constraint(this, rhsExpr) with >
   }
 
   case class Objective(expression: Expression, sense: ObjectiveSense)
@@ -289,24 +306,28 @@ object ModelDSL {
     val maximize, minimize = Value
   }
 
-  trait < extends Constraint {
-    override val sense = ConstraintSense.<
+  trait ConstraintSenseOperator {
+    val sense: ConstraintSense.Value
   }
 
-  trait <= extends Constraint {
-    override val sense = ConstraintSense.<=
+  trait < extends ConstraintSenseOperator {
+    val sense = ConstraintSense.<
   }
 
-  trait > extends Constraint {
-    override val sense = ConstraintSense.>
+  trait <= extends ConstraintSenseOperator {
+    val sense = ConstraintSense.<=
   }
 
-  trait >= extends Constraint {
-    override val sense = ConstraintSense.>=
+  trait > extends ConstraintSenseOperator {
+    val sense = ConstraintSense.>
   }
 
-  trait == extends Constraint {
-    override def sense = ConstraintSense.==
+  trait >= extends ConstraintSenseOperator {
+    val sense = ConstraintSense.>=
+  }
+
+  trait == extends ConstraintSenseOperator {
+    val sense = ConstraintSense.==
   }
 
   object ConstraintSense extends Enumeration {
@@ -335,5 +356,6 @@ object ModelDSL {
     def javaModelToString(m: model.Model) = println(m)
     javaModelToString(createModel)
   }
+
 
 }
