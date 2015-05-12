@@ -349,7 +349,7 @@ object ModelDSL {
     val c1: Constraint = x + 2*y + 3*z <= 10
     val c2: Constraint = x + y >= 1
 
-    Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
+    Model("simple-mip") vars (x, y, z) maximize obj subject_to (c1, c2)
   }
 
   def main(args: Array[String]) = {
