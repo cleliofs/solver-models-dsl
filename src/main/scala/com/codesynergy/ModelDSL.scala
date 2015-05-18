@@ -164,14 +164,14 @@ object ModelDSL {
       this
     }
 
-    def binary(lb: Int, up: Int) = {
+    def binary(lb: Int, ub: Int) = {
       _lb = lb
       _ub = ub
       variableSense = VariableSense.binary
       this
     }
 
-    def binary(lb: Double, up: Double) = {
+    def binary(lb: Double, ub: Double) = {
       _lb = lb.toInt
       _ub = ub.toInt
       variableSense = VariableSense.binary
