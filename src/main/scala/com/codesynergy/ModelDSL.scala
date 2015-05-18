@@ -120,8 +120,8 @@ object ModelDSL {
       this
     }
 
-    def vars(v: Variable*): Model = {
-      variables++=v
+    def vars(seqVars: Seq[Variable]): Model = {
+      variables++=seqVars
       this
     }
 
@@ -157,9 +157,23 @@ object ModelDSL {
       this
     }
 
+    def continuous(lb: Double, ub: Double) = {
+      _lb = lb.toInt
+      _ub = ub.toInt
+      variableSense = VariableSense.continuous
+      this
+    }
+
     def binary(lb: Int, up: Int) = {
       _lb = lb
       _ub = ub
+      variableSense = VariableSense.binary
+      this
+    }
+
+    def binary(lb: Double, up: Double) = {
+      _lb = lb.toInt
+      _ub = ub.toInt
       variableSense = VariableSense.binary
       this
     }
@@ -349,12 +363,13 @@ object ModelDSL {
     val c1: Constraint = x + 2*y + 3*z <= 10
     val c2: Constraint = x + y >= 1
 
-    Model("simple-mip") vars (x, y, z) maximize obj subject_to c1 subject_to c2
+    Model("simple-mip") vars (x, y, z) maximize obj subject_to (c1, c2)
   }
 
   def main(args: Array[String]) = {
     def javaModelToString(m: model.Model) = println(m)
     javaModelToString(createModel)
   }
+
 
 }
