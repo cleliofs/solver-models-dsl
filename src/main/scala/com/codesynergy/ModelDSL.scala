@@ -10,44 +10,24 @@ import com.codesynergy.ModelDSL.VariableSense.VariableSense
 import scala.collection.mutable.ArrayBuffer
 
 /**
- * This example formulates and solves the following simple MIP model:
- *
- *  maximize    x + y + 2z
- *
- *  subject to  x + 2y + 3z <= 10
- *  subject to  x + y >= 1
- *              x, y, z continuous
+ * OptZ++ a DSL in Scala for modelling LP models.
  *
  * Created by csouza on 01/05/2015.
  */
 object ModelDSL {
 
-  implicit def stringToVariable(name: String): Variable = name.split(" ").toList match {
-    case l if l.size == 1 => Variable(name = l.head)
-    case l if l.size == 2 => Variable(l.head, l(1).toDouble)
-    case _ => throw new IllegalArgumentException(s"A non-expected list with more than two items as given: $name")
-  }
+  implicit def string2Variable(name: String): Variable = Variable(name)
 
-  implicit def stringToExpression(name: String): Expression = name.split(" ").toList match {
-    case l if l.size == 1 => new Expression(1, Variable(l.head))
-    case l if l.size == 2 => new Expression(l.head.toDouble, Variable(l(1)))
-    case _ => throw new IllegalArgumentException(s"A non-expected list with more than two items as given: $name")
-  }
+  implicit def variable2Expression(v: Variable): Expression = new Expression(Some(1), Some(v))
 
-  implicit def intToVar(i: Int): Variable = Variable(coeff = i)
-
-  implicit def doubleToVar(d: Double): Variable = Variable(coeff = d)
-
-  implicit def variableToExpression(v: Variable): Expression = new Expression(1, v)
-
-  implicit def varSenseToJavaVarType(s: VariableSense): model.Variable.Type = {
+  implicit def varSense2JavaVarType(s: VariableSense): model.Variable.Type = {
     s match {
       case VariableSense.binary => model.Variable.Type.BINARY
       case VariableSense.continuous => model.Variable.Type.CONTINUOUS
     }
   }
 
-  implicit def constraintSenseToJavaConstraintSense(s: ConstraintSense): model.Constraint.Sense = {
+  implicit def constraintSense2JavaConstraintSense(s: ConstraintSense): model.Constraint.Sense = {
     s match {
       case ConstraintSense.== => model.Constraint.Sense.EQUAL
       case ConstraintSense.<= => model.Constraint.Sense.LESS_EQUAL
@@ -55,14 +35,14 @@ object ModelDSL {
     }
   }
 
-  implicit def objSenseToJavaObjSense(s: ObjectiveSense): model.Objective.Sense = {
+  implicit def objSense2JavaObjSense(s: ObjectiveSense): model.Objective.Sense = {
     s match {
       case ObjectiveSense.maximize => model.Objective.Sense.MAXIMIZE
       case ObjectiveSense.minimize => model.Objective.Sense.MINIMIZE
     }
   }
 
-  implicit def variableToJavaVariable(v: Variable): model.Variable = {
+  implicit def variable2JavaVariable(v: Variable): model.Variable = {
     val javaVariableBuilder = new model.Variable.Builder()
     javaVariableBuilder.withName(v.name)
     javaVariableBuilder.withLowerBound(v.lb.toDouble)
@@ -71,34 +51,34 @@ object ModelDSL {
     javaVariableBuilder.build()
   }
 
-  implicit def constraintToJavaConsraint(c: Constraint): model.Constraint = {
+  implicit def constraint2JavaConsraint(c: Constraint): model.Constraint = {
     val javaConstraintBuilder = new model.Constraint.Builder()
     javaConstraintBuilder.withName(c.name)
     javaConstraintBuilder.withSense(c.sense)
-    if (c.lhsVar != None) javaConstraintBuilder.withLhsVar(c.lhsVar.get)
-    if (c.lhsExpr != None) javaConstraintBuilder.withLhsExpr(c.lhsExpr.get)
-    if (c.lhsValue != None) javaConstraintBuilder.withLhsValue(c.lhsValue.get)
-    if (c.rhsVar != None) javaConstraintBuilder.withRhsVar(c.rhsVar.get)
-    if (c.rhsExpr != None) javaConstraintBuilder.withRhsExpr(c.rhsExpr.get)
-    if (c.rhsValue != None) javaConstraintBuilder.withRhsValue(c.rhsValue.get)
+    if (c.lhsVar.isDefined) javaConstraintBuilder.withLhsVar(c.lhsVar.get)
+    if (c.lhsExpr.isDefined) javaConstraintBuilder.withLhsExpr(c.lhsExpr.get)
+    if (c.lhsValue.isDefined) javaConstraintBuilder.withLhsValue(c.lhsValue.get)
+    if (c.rhsVar.isDefined) javaConstraintBuilder.withRhsVar(c.rhsVar.get)
+    if (c.rhsExpr.isDefined) javaConstraintBuilder.withRhsExpr(c.rhsExpr.get)
+    if (c.rhsValue.isDefined) javaConstraintBuilder.withRhsValue(c.rhsValue.get)
     javaConstraintBuilder.build()
   }
 
-  implicit def expressionToJavaExpression(e: Expression): model.LinearExpr = {
+  implicit def expression2JavaExpression(e: Expression): model.LinearExpr = {
     val javaExpressionBuilder = new LinearExpr.Builder()
     e.vars.foreach(javaExpressionBuilder.addVariable(_))
     e.coeffs.foreach(javaExpressionBuilder.addCoefficient(_))
-    javaExpressionBuilder.build()
+    javaExpressionBuilder.withConstant(null).build()
   }
 
-  implicit def objectiveToJavaObjective(o: Objective): model.Objective = {
+  implicit def objective2JavaObjective(o: Objective): model.Objective = {
     val javaObjectiveBuilder = new model.Objective.Builder()
     javaObjectiveBuilder.withLinearExp(o.expression)
     javaObjectiveBuilder.withSense(o.sense)
     javaObjectiveBuilder.build()
   }
 
-  implicit def modelToJavaModel(m: Model): model.Model = {
+  implicit def model2JavaModel(m: Model): model.Model = {
     val javaModelBuilder = new Builder()
     javaModelBuilder.withName(m.name)
     m.constraints.foreach(javaModelBuilder.addConstraint(_))
@@ -108,9 +88,8 @@ object ModelDSL {
       .build()
   }
 
-  case class Model(name: String) {
-    private var _sense: ObjectiveSense = _
 
+  case class Model(name: String) {
     var objective: Objective = _
     var variables = new ArrayBuffer[Variable]()
     var constraints = new ArrayBuffer[Constraint]()
@@ -120,34 +99,34 @@ object ModelDSL {
       this
     }
 
-    def vars(seqVars: Seq[Variable]): Model = {
-      variables++=seqVars
+    def vars(variableSeq: Seq[Variable]): Model = {
+      variables++=variableSeq
       this
     }
 
     def maximize(e: Expression): Model = {
-      _sense = ObjectiveSense.maximize
       objective = Objective(e, ObjectiveSense.maximize)
       this
     }
 
-    def minimize: Model = {
-      _sense = ObjectiveSense.minimize
+    def minimize(e: Expression): Model = {
+      objective = Objective(e, ObjectiveSense.minimize)
       this
     }
 
-    def subject_to(c: Constraint*): Model = {
-      constraints++=c
+    def subject_to(constraintSeq: Seq[Constraint]): Model = {
+      constraints++=constraintSeq
       this
     }
 
-    def convert = modelToJavaModel(this)
+    def convert = model2JavaModel(this)
   }
 
-  case class Variable(name: String = "", coeff: Double = 1.0) {
+  case class Variable(name: String = "") {
 
     private var _lb: Int = _
     private var _ub: Int = _
+    private var _obj: Double = _
     private var variableSense: VariableSense = _
 
     def continuous(lb: Int, ub: Int) = {
@@ -157,11 +136,12 @@ object ModelDSL {
       this
     }
 
-    def continuous(lb: Double, ub: Double) = {
-      _lb = lb.toInt
-      _ub = ub.toInt
-      variableSense = VariableSense.continuous
-      this
+    def continuous(lb: Double, ub: Double): Variable = {
+      continuous(lb.toInt, ub.toInt)
+    }
+
+    def continuous(lb: String, ub: String): Variable = {
+      continuous(lb.toDouble, ub.toDouble)
     }
 
     def binary(lb: Int, ub: Int) = {
@@ -171,20 +151,28 @@ object ModelDSL {
       this
     }
 
-    def binary(lb: Double, ub: Double) = {
-      _lb = lb.toInt
-      _ub = ub.toInt
-      variableSense = VariableSense.binary
+    def binary(lb: Double, ub: Double): Variable = {
+      binary(lb.toInt, ub.toInt)
+    }
+
+    def objective(obj: Double) = {
+      _obj = obj
       this
     }
 
-    def * (coeff: Double): Expression = new Expression(coeff, this)
+    def objective(obj: String): Variable = {
+      objective(obj.toDouble)
+    }
 
-    def * (variable: Variable): Expression = new Expression(this.coeff, variable)
+    def *:(coeff: Double): Expression = new Expression(Some(coeff), Some(this))
+
+    def *:(coeff: String): Expression = new Expression(Some(coeff.toDouble), Some(this))
 
     def lb = _lb
 
     def ub = _ub
+
+    def obj = _obj
 
     def sense = variableSense
   }
@@ -196,6 +184,11 @@ object ModelDSL {
     var rhsExpr: Option[Expression] = None
     var lhsValue: Option[Double] = None
     var rhsValue: Option[Double] = None
+
+    def name(n: String): Constraint = {
+      name = n
+      this
+    }
 
     def this(lhsVar: Variable, rhsVar: Variable) = {
       this()
@@ -254,17 +247,15 @@ object ModelDSL {
     val sense: ConstraintSense.Value
   }
 
-  case class Expression(coeff: Double, variable: Variable) {
+  case class Expression(coeff: Option[Double], variable: Option[Variable]) {
     private var _vars: ArrayBuffer[Variable] = new ArrayBuffer[Variable]()
     private var _coeffs: ArrayBuffer[Double] = new ArrayBuffer[Double]()
 
-    _coeffs += coeff
-    _vars += variable
+    if (coeff.isDefined) _coeffs += coeff.get
+    if (variable.isDefined) _vars += variable.get
 
-    def +(v: Variable*): Expression = {
-      _vars ++= v
-      v.foreach(_coeffs += _.coeff)
-      this
+    def this() {
+      this(None, None)
     }
 
     def +(e: Expression): Expression = {
@@ -352,23 +343,6 @@ object ModelDSL {
   object VariableSense extends Enumeration {
     type VariableSense = Value
     val continuous, binary = Value
-  }
-
-  def createModel = {
-    val x: Variable = "x" continuous (0, 1)
-    val y: Variable = "y" continuous (0, 1)
-    val z: Variable = "z" continuous (0, 1)
-
-    val obj: Expression = x + y + 2*z
-    val c1: Constraint = x + 2*y + 3*z <= 10
-    val c2: Constraint = x + y >= 1
-
-    Model("simple-mip") vars (x, y, z) maximize obj subject_to (c1, c2)
-  }
-
-  def main(args: Array[String]) = {
-    def javaModelToString(m: model.Model) = println(m)
-    javaModelToString(createModel)
   }
 
 
