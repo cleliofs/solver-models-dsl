@@ -51,7 +51,7 @@ object ModelDSL {
     javaVariableBuilder.build()
   }
 
-  implicit def constraint2JavaConsraint(c: Constraint): model.Constraint = {
+  implicit def constraint2JavaConstraint(c: Constraint): model.Constraint = {
     val javaConstraintBuilder = new model.Constraint.Builder()
     javaConstraintBuilder.withName(c.name)
     javaConstraintBuilder.withSense(c.sense)
@@ -99,6 +99,11 @@ object ModelDSL {
       this
     }
 
+    def withVars(vars: Variable*): Model = {
+      variables++=vars
+      this
+    }
+
     def vars(variableSeq: Seq[Variable]): Model = {
       variables++=variableSeq
       this
@@ -116,6 +121,11 @@ object ModelDSL {
 
     def subject_to(constraintSeq: Seq[Constraint]): Model = {
       constraints++=constraintSeq
+      this
+    }
+
+    def withConstraints(constraints: Constraint*): Model = {
+      this.constraints++=constraints
       this
     }
 
@@ -144,15 +154,11 @@ object ModelDSL {
       continuous(lb.toDouble, ub.toDouble)
     }
 
-    def binary(lb: Int, ub: Int) = {
-      _lb = lb
-      _ub = ub
+    def binary = {
+      _lb = 0
+      _ub = 1
       variableSense = VariableSense.binary
       this
-    }
-
-    def binary(lb: Double, ub: Double): Variable = {
-      binary(lb.toInt, ub.toInt)
     }
 
     def objective(obj: Double) = {
@@ -344,6 +350,5 @@ object ModelDSL {
     type VariableSense = Value
     val continuous, binary = Value
   }
-
 
 }
