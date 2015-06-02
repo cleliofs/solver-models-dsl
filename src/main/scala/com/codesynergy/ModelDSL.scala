@@ -16,6 +16,10 @@ import scala.collection.mutable.ArrayBuffer
  */
 object ModelDSL {
 
+  implicit def intToExpression(c: Int): Expression = Expression(constant = Some(c))
+
+  implicit def doubleToExpression(c: Double): Expression = Expression(constant = Some(c))
+
   implicit def string2Variable(name: String): Variable = Variable(name)
 
   implicit def variable2Expression(v: Variable): Expression = new Expression(Some(1), Some(v))
@@ -253,10 +257,12 @@ object ModelDSL {
     val sense: ConstraintSense.Value
   }
 
-  case class Expression(coeff: Option[Double], variable: Option[Variable]) {
+  case class Expression(coeff: Option[Double] = None, variable: Option[Variable] = None, constant: Option[Double] = None) {
+    private var _constants: ArrayBuffer[Double] = new ArrayBuffer[Double]()
     private var _vars: ArrayBuffer[Variable] = new ArrayBuffer[Variable]()
     private var _coeffs: ArrayBuffer[Double] = new ArrayBuffer[Double]()
 
+    if (constant.isDefined) _constants += constant.get
     if (coeff.isDefined) _coeffs += coeff.get
     if (variable.isDefined) _vars += variable.get
 
@@ -265,10 +271,13 @@ object ModelDSL {
     }
 
     def +(e: Expression): Expression = {
+      _constants ++= e.cons
       _vars ++= e.vars
       _coeffs ++= e.coeffs
       this
     }
+
+    def cons = _constants
 
     def vars = _vars
 
@@ -299,15 +308,30 @@ object ModelDSL {
 
 
     // operators for rhs expression
-    def ==(rhsExpr: Expression) = new Constraint(this, rhsExpr) with ==
+    def ==(rhsExpr: Expression) = {
+      if (rhsExpr.cons isEmpty) new Constraint(this, rhsExpr) with ==
+      else new Constraint(this, rhsExpr.cons.reduce(_ + _)) with ==
+    }
 
-    def <=(rhsExpr: Expression) = new Constraint(this, rhsExpr) with <=
+    def <=(rhsExpr: Expression) = {
+      if (rhsExpr.cons isEmpty) new Constraint(this, rhsExpr) with <=
+      else new Constraint(this, rhsExpr.cons.reduce(_ + _)) with <=
+    }
 
-    def >=(rhsExpr: Expression) = new Constraint(this, rhsExpr) with >=
+    def >=(rhsExpr: Expression) = {
+      if (rhsExpr.cons isEmpty) new Constraint(this, rhsExpr) with >=
+      else new Constraint(this, rhsExpr.cons.reduce(_ + _)) with >=
+    }
 
-    def <(rhsExpr: Expression) = new Constraint(this, rhsExpr) with <
+    def <(rhsExpr: Expression) = {
+      if (rhsExpr.cons isEmpty) new Constraint(this, rhsExpr) with <
+      else new Constraint(this, rhsExpr.cons.reduce(_ + _)) with <
+    }
 
-    def >(rhsExpr: Expression) = new Constraint(this, rhsExpr) with >
+    def >(rhsExpr: Expression) = {
+      if (rhsExpr.cons isEmpty) new Constraint(this, rhsExpr) with >
+      else new Constraint(this, rhsExpr.cons.reduce(_ + _)) with >
+    }
   }
 
   case class Objective(expression: Expression, sense: ObjectiveSense)
